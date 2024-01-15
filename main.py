@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from random import randint
+import sqlite3
 
 import requests
 from PyQt6 import QtCore, QtWidgets
@@ -137,6 +138,11 @@ class Main(QWidget):
         self.parent = parent
         self.api = VNDB(prefer_languages=["zh"])
         self.setupUi(parent)
+        self.game_list = []
+        self.connect_db()
+        self.current_game_index=0
+        self.parse_next_game()
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1067, 600)
@@ -207,10 +213,8 @@ class Main(QWidget):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.main_title.setText(_translate("MainWindow", "Scraper"))
-        self.current_working.setText(_translate("MainWindow", "Currently Working on 1"))
+        self.current_working.setText(_translate("MainWindow", "Currently Working "))
         self.searchbutton.setText(_translate("MainWindow", "Search"))
-        self.result_title.setText(_translate("MainWindow", "TextLabel"))
-        self.result_description.setText(_translate("MainWindow", "TextLabel"))
         self.confirm_button.setText(_translate("MainWindow", "Confirm"))
         self.result_title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.result_description.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
@@ -234,6 +238,8 @@ class Main(QWidget):
         if dlg.exec():
             print("Success!")
             print("Final Chosen Image {}".format(dlg.chosen_img_index))
+            self.current_game_index+=1
+            self.parse_next_game()
         else:
             print("Cancel!")
 
@@ -254,8 +260,32 @@ class Main(QWidget):
         img.loadFromData(img_data)
         qpixmap = QPixmap()
         qpixmap = qpixmap.fromImage(img)
-        scaled_pixmap = qpixmap.scaled(qlabel.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+        scaled_pixmap = qpixmap.scaled(qlabel.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         return scaled_pixmap
+
+    def connect_db(self):
+        conn = sqlite3.connect("pga.db")
+        c = conn.execute('SELECT id,name,slug FROM games WHERE installed=1')
+        games = c.fetchall()
+        for entry in games:
+            title = entry[0]
+            print(title)
+            self.game_list.append({"id":entry[0],"title":entry[1],"slug":entry[2]})
+
+    def parse_next_game(self):
+        if self.current_game_index>=len(self.game_list):
+            # ALL DONE
+            self.progressBar.setProperty("value", 100)
+            self.current_working.setText(f"All DONE! You can safely quit the application now")
+            return
+
+        print(f"Start parsing ${self.game_list[self.current_game_index]['title']}")
+        current_game = self.game_list[self.current_game_index]
+        self.current_working.setText(f"Currently working on: ${current_game['title']}")
+        self.progressBar.setProperty("value",int(100*self.current_game_index/len(self.game_list)))
+        self.searchbar.setText(current_game['title'])
+        self.do_search()
+
 
 
 class MainWindow(QMainWindow):

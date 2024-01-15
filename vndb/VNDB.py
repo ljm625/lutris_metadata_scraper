@@ -51,10 +51,13 @@ class VNDB(object):
         if self.data.get(title):
             data = self.data[title]
             desc = ""
-            for alt_title in data["titles"]:
-                desc = desc+ "{} {}\n".format(alt_title["title"],alt_title["lang"])
-            desc = desc+"Release Date: {}\n".format(data["released"])
-            desc = desc + data["description"]
+            if data.get("titles"):
+                for alt_title in data["titles"]:
+                    desc = desc+ "{} {}\n".format(alt_title["title"],alt_title["lang"])
+            if data.get("released"):
+                desc = desc+"Release Date: {}\n".format(data["released"])
+            if data.get("description"):
+                desc = desc + data["description"]
             return desc
         else:
             return ""
