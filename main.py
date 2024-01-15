@@ -12,11 +12,120 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QVBoxLayout,
-    QWidget,
+    QWidget, QDialog, QDialogButtonBox, QRadioButton, QHBoxLayout, QGridLayout,
 )
 from qasync import QEventLoop, asyncSlot
 
 from vndb.VNDB import VNDB
+
+
+class ScreenshotDialog(QDialog):
+    def __init__(self,parent,title):
+        super().__init__()
+        self.parent = parent
+        self.setWindowTitle(f"{title}  Choose image for banner")
+        self.setGeometry(QtCore.QRect(10, 0, 1051, 531))
+        self.checkboxs = [None]*6
+        self.images = [None]*6
+        self.start_range = 0
+        self.title = title
+        self.screenshot_count = 0
+        self.chosen_img_index = 0
+        QBtn = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        self.prev = QPushButton("Prev Page")
+        self.next = QPushButton("Next Page")
+        self.prev.setEnabled(False)
+        self.next.setEnabled(False)
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.layout = QGridLayout()
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.prev)
+        button_layout.addWidget(self.next)
+        button_layout.addWidget(self.buttonBox)
+        index = 0
+        for i in range(0,2):
+            for j in range(0,3):
+                resp = self.generate_image_group(index)
+                self.layout.addLayout(resp, i, j, 1, 1)
+                index+=1
+        self.layout.addLayout(button_layout,2,0,1,-1)
+        self.setLayout(self.layout)
+        self.do_get_screenshots()
+        self.prev.clicked.connect(self.goto_prev_page)
+        self.next.clicked.connect(self.goto_next_page)
+        self.screenshot_count = self.parent.api.get_screenshot_count(title)
+        if self.screenshot_count>6:
+            self.next.setEnabled(True)
+
+
+    def goto_prev_page(self):
+        self.start_range = self.start_range - 6
+        if self.start_range<0: self.start_range=0
+        if self.start_range==0:
+            self.prev.setEnabled(True)
+        self.next.setEnabled(True)
+        self.do_get_screenshots()
+
+
+    def goto_next_page(self):
+        self.start_range = self.start_range + 6
+        if self.start_range+6<self.screenshot_count:
+            # Still more images to go
+            pass
+        else:
+            self.next.setEnabled(False)
+        self.prev.setEnabled(True)
+        self.do_get_screenshots()
+
+    def generate_image_group(self,index):
+        if index>len(self.checkboxs):
+            return
+        layout = QtWidgets.QVBoxLayout()
+        img = QLabel(f"Image-{index}")
+        img.setScaledContents(True)
+        choice = QRadioButton("Select")
+        layout.addWidget(img)
+        layout.addWidget(choice)
+        choice.setEnabled(False)
+        self.checkboxs[index] = choice
+        self.images[index] = img
+        choice.toggled.connect(self.on_chosen_screenshot)
+        return layout
+
+    def on_chosen_screenshot(self):
+        for i in range(0,6):
+            if self.checkboxs[i].isChecked():
+                self.chosen_img_index = i+self.start_range
+                print("Choose Image {}".format(self.chosen_img_index))
+                return
+
+    def pack_image_to_qpixmap(self,img_data):
+        img = QImage()
+        img.loadFromData(img_data)
+        qpixmap = QPixmap()
+        qpixmap = qpixmap.fromImage(img)
+        scaled_pixmap = qpixmap.scaled(int(self.images[0].size().width()),int(self.images[0].size().height()), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+        return scaled_pixmap
+
+    def do_get_screenshots(self):
+        for i in range(0,6):
+            self.do_get_screenshot(i)
+
+    @asyncSlot()
+    async def do_get_screenshot(self,index):
+        if index+self.start_range>=self.screenshot_count:
+            # Running out of images
+            self.checkboxs[index].setEnabled(False)
+            self.images[index].clear()
+            return
+        image = await self.parent.api.get_screenshot(self.title,index+self.start_range)
+        if image:
+            pixmap = self.pack_image_to_qpixmap(image)
+            self.images[index].setPixmap(pixmap)
+            self.images[index].setScaledContents(True)
+            self.checkboxs[index].setEnabled(True)
 
 
 
@@ -90,6 +199,7 @@ class Main(QWidget):
         self.searchbutton.setEnabled(False)
         self.confirm_button.setEnabled(False)
         self.search_result.currentIndexChanged.connect(self.update_show_info)
+        self.confirm_button.clicked.connect(self.do_choose_banner)
 
 
 
@@ -119,6 +229,14 @@ class Main(QWidget):
     def search_trigger(self):
         self.searchbutton.setEnabled(True)
 
+    def do_choose_banner(self):
+        dlg = ScreenshotDialog(self,self.result_title.text())
+        if dlg.exec():
+            print("Success!")
+            print("Final Chosen Image {}".format(dlg.chosen_img_index))
+        else:
+            print("Cancel!")
+
     @asyncSlot()
     async def update_show_info(self):
         title = self.search_result.currentText()
@@ -127,15 +245,17 @@ class Main(QWidget):
         self.result_description.setText(desc)
         img = await self.api.get_cover_image(title)
         if img:
-            self.result_image.setPixmap(self.pack_image_to_qpixmap(img))
+            self.result_image.setPixmap(self.pack_image_to_qpixmap(img,self.result_image))
+        self.confirm_button.setEnabled(True)
 
 
-    def pack_image_to_qpixmap(self,img_data):
+    def pack_image_to_qpixmap(self,img_data,qlabel):
         img = QImage()
         img.loadFromData(img_data)
         qpixmap = QPixmap()
         qpixmap = qpixmap.fromImage(img)
-        return qpixmap
+        scaled_pixmap = qpixmap.scaled(qlabel.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+        return scaled_pixmap
 
 
 class MainWindow(QMainWindow):

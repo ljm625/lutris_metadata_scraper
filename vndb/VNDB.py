@@ -72,6 +72,14 @@ class VNDB(object):
         else:
             return 0
 
+    async def get_screenshot(self,title,index):
+        if self.data.get(title) and self.data.get(title).get("screenshots"):
+            screenshots = self.data.get(title).get("screenshots")
+            if 0 <= index < len(screenshots):
+                screenshot = screenshots[index]["url"]
+                return await self.__download_image(screenshot)
+        else:
+            return None
 
 
 
