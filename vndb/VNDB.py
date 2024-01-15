@@ -47,6 +47,24 @@ class VNDB(object):
     def get_titles(self):
         return list(self.data.keys())
 
+    def get_prefer_title(self,title):
+        prefer_title = title
+        if self.data.get(title):
+            data = self.data[title]
+            alt_title = {}
+            if data.get("titles"):
+                for alt in data["titles"]:
+                    alt_title[alt["lang"]]=alt["title"]
+            for lang in self.prefer_languages:
+                if alt_title.get(lang):
+                    prefer_title = alt_title[lang]
+                    break
+        return prefer_title
+
+
+
+
+
     def get_description(self,title):
         if self.data.get(title):
             data = self.data[title]

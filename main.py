@@ -4,6 +4,7 @@ from random import randint
 import sqlite3
 
 import requests
+import yaml
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QPixmap
@@ -17,7 +18,13 @@ from PyQt6.QtWidgets import (
 )
 from qasync import QEventLoop, asyncSlot
 
+from adaptor.lutris import Lutris
 from vndb.VNDB import VNDB
+
+def load_config(name):
+    with open(name) as file:
+        config = yaml.load(file.read(), Loader=yaml.FullLoader)
+        return config
 
 
 class ScreenshotDialog(QDialog):
@@ -133,14 +140,21 @@ class ScreenshotDialog(QDialog):
 
 
 class Main(QWidget):
-    def __init__(self,parent):
+    def __init__(self,parent,api,adaptor):
         super(Main,self).__init__()
         self.parent = parent
-        self.api = VNDB(prefer_languages=["zh"])
+        self.api = api
+        self.adaptor = adaptor
         self.setupUi(parent)
         self.game_list = []
-        self.connect_db()
         self.current_game_index=0
+        self.game_list = self.adaptor.get_title_list()
+        self.current_game_info = {
+            "title": None,
+            "prefer_title": None,
+            "cover_art": None,
+            "banner_art": None,
+        }
         self.parse_next_game()
 
     def setupUi(self, MainWindow):
@@ -235,13 +249,25 @@ class Main(QWidget):
 
     def do_choose_banner(self):
         dlg = ScreenshotDialog(self,self.result_title.text())
+
         if dlg.exec():
             print("Success!")
             print("Final Chosen Image {}".format(dlg.chosen_img_index))
-            self.current_game_index+=1
-            self.parse_next_game()
+            self.update_info_to_adaptor(dlg.chosen_img_index)
         else:
             print("Cancel!")
+
+    @asyncSlot()
+    async def update_info_to_adaptor(self,banner_index):
+        self.current_game_info["title"] = self.result_title.text()
+        self.current_game_info["prefer_title"] = self.api.get_prefer_title(self.result_title.text())
+        self.current_game_info["banner_art"] = await self.api.get_screenshot(self.current_game_info["title"],
+                                                                             banner_index)
+
+        self.adaptor.update_game_entry(self.game_list[self.current_game_index]['id'], self.current_game_info["prefer_title"],
+                                  self.current_game_info["cover_art"], self.current_game_info["banner_art"])
+        self.current_game_index += 1
+        self.parse_next_game()
 
     @asyncSlot()
     async def update_show_info(self):
@@ -250,6 +276,7 @@ class Main(QWidget):
         self.result_title.setText(title)
         self.result_description.setText(desc)
         img = await self.api.get_cover_image(title)
+        self.current_game_info["cover_art"] = img
         if img:
             self.result_image.setPixmap(self.pack_image_to_qpixmap(img,self.result_image))
         self.confirm_button.setEnabled(True)
@@ -263,14 +290,6 @@ class Main(QWidget):
         scaled_pixmap = qpixmap.scaled(qlabel.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         return scaled_pixmap
 
-    def connect_db(self):
-        conn = sqlite3.connect("pga.db")
-        c = conn.execute('SELECT id,name,slug FROM games WHERE installed=1')
-        games = c.fetchall()
-        for entry in games:
-            title = entry[0]
-            print(title)
-            self.game_list.append({"id":entry[0],"title":entry[1],"slug":entry[2]})
 
     def parse_next_game(self):
         if self.current_game_index>=len(self.game_list):
@@ -278,10 +297,15 @@ class Main(QWidget):
             self.progressBar.setProperty("value", 100)
             self.current_working.setText(f"All DONE! You can safely quit the application now")
             return
-
-        print(f"Start parsing ${self.game_list[self.current_game_index]['title']}")
+        self.current_game_info = {
+            "title": None,
+            "prefer_title": None,
+            "cover_art": None,
+            "banner_art": None,
+        }
+        print(f"Start parsing {self.game_list[self.current_game_index]['title']}")
         current_game = self.game_list[self.current_game_index]
-        self.current_working.setText(f"Currently working on: ${current_game['title']}")
+        self.current_working.setText(f"Currently working on: {current_game['title']}")
         self.progressBar.setProperty("value",int(100*self.current_game_index/len(self.game_list)))
         self.searchbar.setText(current_game['title'])
         self.do_search()
@@ -289,9 +313,9 @@ class Main(QWidget):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self,api,adaptor):
         super().__init__()
-        self.main = Main(self)
+        self.main = Main(self,api,adaptor)
         # self.setCentralWidget(self.main)
 
     # def resizeEvent(self,event):
@@ -299,8 +323,7 @@ class MainWindow(QMainWindow):
     #     print(self.size().width())
     #     self.main.resize(self.size().width()-10,self.size().height()-10)
 
-
-
+config=load_config("config.yaml")
 app = QApplication(sys.argv)
 
 event_loop = QEventLoop(app)
@@ -309,7 +332,10 @@ asyncio.set_event_loop(event_loop)
 app_close_event = asyncio.Event()
 app.aboutToQuit.connect(app_close_event.set)
 
-w = MainWindow()
+api = VNDB(config["prefer_title_language"])
+adaptor = Lutris(config["update_title"])
+
+w = MainWindow(api,adaptor)
 w.show()
 with event_loop:
     event_loop.run_until_complete(app_close_event.wait())
