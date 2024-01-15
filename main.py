@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QVBoxLayout,
-    QWidget, QDialog, QDialogButtonBox, QRadioButton, QHBoxLayout, QGridLayout,
+    QWidget, QDialog, QDialogButtonBox, QRadioButton, QHBoxLayout, QGridLayout, QScrollArea,
 )
 from qasync import QEventLoop, asyncSlot
 
@@ -114,7 +114,7 @@ class ScreenshotDialog(QDialog):
         img.loadFromData(img_data)
         qpixmap = QPixmap()
         qpixmap = qpixmap.fromImage(img)
-        scaled_pixmap = qpixmap.scaled(int(self.images[0].size().width()),int(self.images[0].size().height()), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+        scaled_pixmap = qpixmap.scaled(int(self.images[0].size().width()),int(self.images[0].size().height()), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         return scaled_pixmap
 
     def do_get_screenshots(self):
@@ -196,7 +196,10 @@ class Main(QWidget):
         self.result_description = QtWidgets.QLabel(parent=self)
         self.result_description.setObjectName("result_description")
         self.result_description.setWordWrap(True)
-        self.gridLayout.addWidget(self.result_description, 6, 0, 6, 7)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidget(self.result_description)
+        self.result_description.resize(self.scroll_area.size())
+        self.gridLayout.addWidget(self.scroll_area, 6, 0, 6, 7)
         self.confirm_button = QtWidgets.QPushButton(parent=self)
         self.confirm_button.setObjectName("confirm_button")
         self.gridLayout.addWidget(self.confirm_button, 12, 7, 1, 3)

@@ -3,3 +3,4 @@ pyqt6==6.5.3
 pyqt6-Qt6==6.5.3
 qasync
 pyyaml
+httpx
