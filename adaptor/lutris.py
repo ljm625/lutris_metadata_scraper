@@ -14,6 +14,8 @@ class Lutris(object):
 
         if db_path:
             self.db_path = db_path
+            self.cover_art_folder = "./coverart"
+            self.banner_art_folder = "./banners"
         else:
             if os.path.isdir(f"/home/{self.os_user}/.local/share/lutris"):
                 self.db_path=f"/home/{self.os_user}/.local/share/lutris/pga.db"
@@ -31,8 +33,6 @@ class Lutris(object):
         c = self.conn.execute('SELECT id,name,slug FROM games WHERE installed=1')
         games = c.fetchall()
         for entry in games:
-            title = entry[0]
-            print(title)
             self.game_list.append({"id":entry[0],"title":entry[1],"slug":entry[2]})
 
     def get_title_list(self):
@@ -51,9 +51,11 @@ class Lutris(object):
         for game in self.game_list:
             if game["id"]==id:
                 slug = game["slug"]
-        with open(f"{self.cover_art_folder}/{slug}.jpg","wb") as file:
-            file.write(cover_art)
-        with open(f"{self.banner_art_folder}/{slug}.jpg","wb") as file:
-            file.write(banner_art)
+        if cover_art:
+            with open(f"{self.cover_art_folder}/{slug}.jpg","wb") as file:
+                file.write(cover_art)
+        if banner_art:
+            with open(f"{self.banner_art_folder}/{slug}.jpg","wb") as file:
+                file.write(banner_art)
 
 

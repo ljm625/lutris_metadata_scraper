@@ -19,7 +19,8 @@ from PyQt6.QtWidgets import (
 from qasync import QEventLoop, asyncSlot
 
 from adaptor.lutris import Lutris
-from vndb.VNDB import VNDB
+from datasource.DLSite import DLSite
+from datasource.VNDB import VNDB
 
 def load_config(name):
     with open(name) as file:
@@ -38,7 +39,7 @@ class ScreenshotDialog(QDialog):
         self.start_range = 0
         self.title = title
         self.screenshot_count = 0
-        self.chosen_img_index = 0
+        self.chosen_img_index = -1
         QBtn = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         self.prev = QPushButton("Prev Page")
         self.next = QPushButton("Next Page")
@@ -200,17 +201,20 @@ class Main(QWidget):
         self.scroll_area.setWidget(self.result_description)
         self.result_description.resize(self.scroll_area.size())
         self.gridLayout.addWidget(self.scroll_area, 6, 0, 6, 7)
+        self.skip_button = QtWidgets.QPushButton(parent=self)
+        self.skip_button.setObjectName("skip_button")
         self.confirm_button = QtWidgets.QPushButton(parent=self)
         self.confirm_button.setObjectName("confirm_button")
+        self.gridLayout.addWidget(self.skip_button, 12, 4, 1, 3)
         self.gridLayout.addWidget(self.confirm_button, 12, 7, 1, 3)
         MainWindow.setCentralWidget(self)
         self.menubar = QtWidgets.QMenuBar(parent=MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1067, 37))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtWidgets.QStatusBar(parent=MainWindow)
-        self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
+        # self.statusbar = QtWidgets.QStatusBar(parent=MainWindow)
+        # self.statusbar.setObjectName("statusbar")
+        # MainWindow.setStatusBar(self.statusbar)
         # self.gridLayout.setRowStretch(0, 1)
         # self.gridLayout.setRowStretch(6, 5)
 
@@ -223,15 +227,17 @@ class Main(QWidget):
         self.confirm_button.setEnabled(False)
         self.search_result.currentIndexChanged.connect(self.update_show_info)
         self.confirm_button.clicked.connect(self.do_choose_banner)
+        self.skip_button.clicked.connect(self.on_click_skip)
 
 
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.main_title.setText(_translate("MainWindow", "Scraper"))
+        self.main_title.setText(_translate("MainWindow", "Lutris Game metadata scraper, will auto read lutris installed games and query on VNDB."))
         self.current_working.setText(_translate("MainWindow", "Currently Working "))
         self.searchbutton.setText(_translate("MainWindow", "Search"))
+        self.skip_button.setText(_translate("MainWindow", "Skip"))
         self.confirm_button.setText(_translate("MainWindow", "Confirm"))
         self.result_title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.result_description.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
@@ -264,9 +270,9 @@ class Main(QWidget):
     async def update_info_to_adaptor(self,banner_index):
         self.current_game_info["title"] = self.result_title.text()
         self.current_game_info["prefer_title"] = self.api.get_prefer_title(self.result_title.text())
-        self.current_game_info["banner_art"] = await self.api.get_screenshot(self.current_game_info["title"],
-                                                                             banner_index)
-
+        if banner_index>=0:
+            self.current_game_info["banner_art"] = await self.api.get_screenshot(self.current_game_info["title"],
+                                                                                 banner_index)
         self.adaptor.update_game_entry(self.game_list[self.current_game_index]['id'], self.current_game_info["prefer_title"],
                                   self.current_game_info["cover_art"], self.current_game_info["banner_art"])
         self.current_game_index += 1
@@ -293,6 +299,9 @@ class Main(QWidget):
         scaled_pixmap = qpixmap.scaled(qlabel.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         return scaled_pixmap
 
+    def on_click_skip(self):
+        self.current_game_index+=1
+        self.parse_next_game()
 
     def parse_next_game(self):
         if self.current_game_index>=len(self.game_list):
@@ -336,7 +345,8 @@ app_close_event = asyncio.Event()
 app.aboutToQuit.connect(app_close_event.set)
 
 api = VNDB(config["prefer_title_language"])
-adaptor = Lutris(config["update_title"])
+# api = DLSite(config["prefer_title_language"],"zh_CN")
+adaptor = Lutris(config["update_title"],"./pga.db")
 
 w = MainWindow(api,adaptor)
 w.show()
