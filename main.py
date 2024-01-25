@@ -360,7 +360,7 @@ app.aboutToQuit.connect(app_close_event.set)
 
 api_vndb = VNDB(config["prefer_title_language"])
 api_dlsite = DLSite(config["prefer_title_language"],config["dlsite_lang"])
-adaptor = Lutris(config["update_title"],"./pga.db")
+adaptor = Lutris(config["update_title"],config.get("lutris_db_path"))
 
 w = MainWindow([api_vndb,api_dlsite],adaptor)
 w.show()
