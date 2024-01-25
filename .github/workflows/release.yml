@@ -27,6 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        echo "RELEASE_DATE=$(date +"%F")" >> $GITHUB_ENV
         python -m pip install --upgrade pip
         pip install pyinstaller
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -35,8 +36,23 @@ jobs:
         mv dist/main dist/lutris_metadata_scraper
         zip -r lutris_metadata_scraper-${{ env.RELEASE_VERSION }}.zip dist/*
     
-    - uses: d1ceward/draft-assets-release-action@v2
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          files: |
-            lutris_metadata_scraper-${{ env.RELEASE_VERSION }}.zip          
+        tag_name: ${{ env.RELEASE_VERSION }}_${{ env.RELEASE_DATE }}
+        release_name: Release ${{ env.RELEASE_VERSION }} ${{ env.RELEASE_DATE }}
+        draft: false
+        prerelease: false
+    - name: Upload Release Asset
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./lutris_metadata_scraper-${{ env.RELEASE_VERSION }}.zip
+        asset_name: lutris_metadata_scraper-${{ env.RELEASE_VERSION }}_${{ env.RELEASE_DATE }}.zip
+        asset_content_type: application/zip
