@@ -1,2 +1,4 @@
 update_title: true
 prefer_title_language: ["zh-Hans","ja","en"]
+dlsite_lang: zh_CN
+#dlsite_lang: ja_JP / en_US

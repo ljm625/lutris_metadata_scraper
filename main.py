@@ -141,10 +141,11 @@ class ScreenshotDialog(QDialog):
 
 
 class Main(QWidget):
-    def __init__(self,parent,api,adaptor):
+    def __init__(self,parent,apis,adaptor):
         super(Main,self).__init__()
         self.parent = parent
-        self.api = api
+        self.apis = apis
+        self.api = self.apis[0]
         self.adaptor = adaptor
         self.setupUi(parent)
         self.game_list = []
@@ -177,9 +178,12 @@ class Main(QWidget):
         self.current_working.setTextFormat(QtCore.Qt.TextFormat.AutoText)
         self.current_working.setObjectName("current_working")
         self.gridLayout.addWidget(self.current_working, 2, 0, 1, 10)
+        self.search_source = QtWidgets.QComboBox(parent=self)
+        self.search_source.setObjectName("search_source")
+        self.gridLayout.addWidget(self.search_source, 3, 0, 1, 2)
         self.searchbar = QtWidgets.QLineEdit(parent=self)
         self.searchbar.setObjectName("searchbar")
-        self.gridLayout.addWidget(self.searchbar, 3, 0, 1, 7)
+        self.gridLayout.addWidget(self.searchbar, 3, 2, 1, 5)
         self.searchbutton = QtWidgets.QPushButton(parent=self)
         self.searchbutton.setObjectName("searchbutton")
         self.gridLayout.addWidget(self.searchbutton, 3, 7, 1, 3)
@@ -226,6 +230,8 @@ class Main(QWidget):
         self.searchbutton.setEnabled(False)
         self.confirm_button.setEnabled(False)
         self.search_result.currentIndexChanged.connect(self.update_show_info)
+        self.search_source.currentIndexChanged.connect(self.update_api_source)
+
         self.confirm_button.clicked.connect(self.do_choose_banner)
         self.skip_button.clicked.connect(self.on_click_skip)
 
@@ -241,6 +247,9 @@ class Main(QWidget):
         self.confirm_button.setText(_translate("MainWindow", "Confirm"))
         self.result_title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.result_description.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        for api in self.apis:
+            self.search_source.addItem(api.name)
+            self.search_source.setCurrentIndex(0)
 
     @asyncSlot()
     async def do_search(self):
@@ -255,6 +264,11 @@ class Main(QWidget):
 
     def search_trigger(self):
         self.searchbutton.setEnabled(True)
+
+    def update_api_source(self):
+        index = self.search_source.currentIndex()
+        self.api = self.apis[index]
+        self.do_search()
 
     def do_choose_banner(self):
         dlg = ScreenshotDialog(self,self.result_title.text())
@@ -325,9 +339,9 @@ class Main(QWidget):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self,api,adaptor):
+    def __init__(self,apis,adaptor):
         super().__init__()
-        self.main = Main(self,api,adaptor)
+        self.main = Main(self,apis,adaptor)
         # self.setCentralWidget(self.main)
 
     # def resizeEvent(self,event):
@@ -344,11 +358,11 @@ asyncio.set_event_loop(event_loop)
 app_close_event = asyncio.Event()
 app.aboutToQuit.connect(app_close_event.set)
 
-# api = VNDB(config["prefer_title_language"])
-api = DLSite(config["prefer_title_language"],"zh_CN")
+api_vndb = VNDB(config["prefer_title_language"])
+api_dlsite = DLSite(config["prefer_title_language"],config["dlsite_lang"])
 adaptor = Lutris(config["update_title"],"./pga.db")
 
-w = MainWindow(api,adaptor)
+w = MainWindow([api_vndb,api_dlsite],adaptor)
 w.show()
 with event_loop:
     event_loop.run_until_complete(app_close_event.wait())

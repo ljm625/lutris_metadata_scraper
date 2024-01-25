@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 class DLSite(object):
 
     def __init__(self,prefer_languages,region="ja_JP"):
+        self.name = "DLSite"
         self.endpoint="https://api.vndb.org/kana/vn"
         self.search_endpoint="https://www.dlsite.com/pro/fsr/=/language/jp/sex_category/male/keyword/{}/work_category%5B0%5D/doujin/work_category%5B1%5D/pc/order/trend/options_and_or/and/from/topsearch.more"
         self.prefer_languages = prefer_languages

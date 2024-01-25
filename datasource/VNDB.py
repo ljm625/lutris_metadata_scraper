@@ -4,6 +4,7 @@ import httpx
 class VNDB(object):
 
     def __init__(self,prefer_languages):
+        self.name = "VNDB"
         self.endpoint="https://api.vndb.org/kana/vn"
         self.prefer_languages = prefer_languages
         self.data = {}
