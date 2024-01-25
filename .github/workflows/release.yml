@@ -34,12 +34,9 @@ jobs:
         cp config.yaml dist/
         mv dist/main dist/lutris_metadata_scraper
         zip -r lutris_metadata_scraper-${{ env.RELEASE_VERSION }}.zip dist/*
-        
-    - name: Upload Release
-      uses: Shopify/upload-to-release@v2.0.0
+    
+    - uses: d1ceward/draft-assets-release-action@v2
       with:
-        # Artifact name
-        name: env.RELEASE_VERSION
-        path: lutris_metadata_scraper-${{ env.RELEASE_VERSION }}.zip
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            lutris_metadata_scraper-${{ env.RELEASE_VERSION }}.zip          
