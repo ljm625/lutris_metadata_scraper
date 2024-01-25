@@ -41,5 +41,5 @@ jobs:
         # Artifact name
         name: env.RELEASE_VERSION
         path: lutris_metadata_scraper-${{ env.RELEASE_VERSION }}.zip
-        repo-token: secrets.GITHUB_TOKEN
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
           
