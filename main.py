@@ -239,7 +239,7 @@ class Main(QWidget):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Lutris Metadata Scraper"))
         self.main_title.setText(_translate("MainWindow", "Lutris Game metadata scraper, will auto read lutris installed games and query on VNDB."))
         self.current_working.setText(_translate("MainWindow", "Currently Working "))
         self.searchbutton.setText(_translate("MainWindow", "Search"))
