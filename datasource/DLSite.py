@@ -10,6 +10,7 @@ class DLSite(object):
         self.prefer_languages = prefer_languages
         self.region = region
         self.data = {}
+        self.title_data={}
         pass
 
 
@@ -73,42 +74,67 @@ class DLSite(object):
         return prefer_title
 
 
-
-
-
-    def get_description(self,title):
+    async def get_title_data(self,title):
         if self.data.get(title):
-            data = self.data[title]
-            desc = ""
-            if data.get("titles"):
-                for alt_title in data["titles"]:
-                    desc = desc+ "{} {}\n".format(alt_title["title"],alt_title["lang"])
-            if data.get("released"):
-                desc = desc+"Release Date: {}\n".format(data["released"])
-            if data.get("description"):
-                desc = desc + data["description"]
-            return desc
+            if self.title_data.get(title):
+                return
+            url = self.data[title]["link"]
+            query_params = {
+                "locale": self.region
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            resp = None
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, params=query_params, headers=headers)
+            if resp and resp.status_code == 200:
+                element = {
+                    "title": None,
+                    "description": None,
+                    "screenshots": [],
+                    "cover": None,
+                }
+                data = resp.text
+                soup = BeautifulSoup(data, 'html.parser')
+                element["title"]= soup.find("h1",{"id":"work_name"}).text
+                screenshots = soup.find("div",{"class":"product-slider-data"}).find_all("div")
+                screenshots = screenshots[1:]
+                for item in screenshots:
+                    element["screenshots"].append(f'https:{item["data-src"]}')
+                cover_url= soup.find("picture").find("img")["srcset"]
+                element["cover"] = f'https:{cover_url}'
+                element["description"] = soup.find("div",{"class":"work_parts_container"}).text
+                self.title_data[title] = element
+
+    async def get_description(self,title):
+        if not self.title_data.get(title) and self.data.get(title):
+            await self.get_title_data(title)
+        if self.title_data.get(title):
+            return self.title_data[title]["description"]
         else:
             return ""
 
     async def get_cover_image(self,title):
-        if self.data.get(title) and self.data.get(title).get("image"):
-            url = self.data[title]["image"]
+        if not self.title_data.get(title) and self.data.get(title):
+            await self.get_title_data(title)
+        if self.title_data.get(title) and self.title_data.get(title).get("cover"):
+            url = self.title_data[title]["cover"]
             return await self.__download_image(url)
         else:
             return None
 
     def get_screenshot_count(self,title):
-        if self.data.get(title) and self.data.get(title).get("screenshots"):
-            return len(self.data.get(title).get("screenshots"))
+        if self.title_data.get(title) and self.title_data.get(title).get("screenshots"):
+            return len(self.title_data.get(title).get("screenshots"))
         else:
             return 0
 
     async def get_screenshot(self,title,index):
-        if self.data.get(title) and self.data.get(title).get("screenshots"):
-            screenshots = self.data.get(title).get("screenshots")
+        if self.title_data.get(title) and self.title_data.get(title).get("screenshots"):
+            screenshots = self.title_data.get(title).get("screenshots")
             if 0 <= index < len(screenshots):
-                screenshot = screenshots[index]["url"]
+                screenshot = screenshots[index]
                 return await self.__download_image(screenshot)
         else:
             return None

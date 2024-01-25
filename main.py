@@ -281,10 +281,10 @@ class Main(QWidget):
     @asyncSlot()
     async def update_show_info(self):
         title = self.search_result.currentText()
-        desc = self.api.get_description(title)
+        img = await self.api.get_cover_image(title)
+        desc = await self.api.get_description(title)
         self.result_title.setText(title)
         self.result_description.setText(desc)
-        img = await self.api.get_cover_image(title)
         self.current_game_info["cover_art"] = img
         if img:
             self.result_image.setPixmap(self.pack_image_to_qpixmap(img,self.result_image))
@@ -344,8 +344,8 @@ asyncio.set_event_loop(event_loop)
 app_close_event = asyncio.Event()
 app.aboutToQuit.connect(app_close_event.set)
 
-api = VNDB(config["prefer_title_language"])
-# api = DLSite(config["prefer_title_language"],"zh_CN")
+# api = VNDB(config["prefer_title_language"])
+api = DLSite(config["prefer_title_language"],"zh_CN")
 adaptor = Lutris(config["update_title"],"./pga.db")
 
 w = MainWindow(api,adaptor)

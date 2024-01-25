@@ -65,7 +65,7 @@ class VNDB(object):
 
 
 
-    def get_description(self,title):
+    async def get_description(self,title):
         if self.data.get(title):
             data = self.data[title]
             desc = ""
