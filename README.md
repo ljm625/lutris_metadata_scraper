@@ -25,10 +25,10 @@ update_title: true  # This decides whether the game title will be updated to VND
 prefer_title_language: ["zh-Hans","ja","en"] # This is the prefered title language for VNDB, in this example if one game has for example zh-Hans title, it will always first use it, if not then ja and en
 dlsite_lang: zh_CN # This is the dlsite search language, possible options are ja_JP / en_US, make sure to use the correct language to search when using DLsite
 #lutris_db_path: ./pga.db # This is only for local debug/testing, don't uncomment it
-
+```
 ## Screenshot
-![](./img/img1.png)
-![](./img/img2.png)
+![img1](./img/img1.png)
+![img2](./img/img2.png)
 
 ## Support
 
