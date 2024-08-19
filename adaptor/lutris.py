@@ -52,9 +52,13 @@ class Lutris(object):
             if game["id"]==id:
                 slug = game["slug"]
         if cover_art:
+            if not os.path.exists(self.cover_art_folder):
+                os.mkdir(self.cover_art_folder)
             with open(f"{self.cover_art_folder}/{slug}.jpg","wb") as file:
                 file.write(cover_art)
         if banner_art:
+            if not os.path.exists(self.banner_art_folder):
+                os.mkdir(self.banner_art_folder)
             with open(f"{self.banner_art_folder}/{slug}.jpg","wb") as file:
                 file.write(banner_art)
 
